@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Management System</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1f2937}
+  h1{color:#1e3a8a} form{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.5rem;margin-bottom:1rem}
+  input,button{padding:.5rem;border:1px solid #cbd5e1;border-radius:6px;font:inherit}
+  button{background:#1e3a8a;color:#fff;cursor:pointer;border:0} button.del{background:#b91c1c;padding:.25rem .6rem}
+  table{width:100%;border-collapse:collapse} th,td{text-align:left;padding:.5rem;border-bottom:1px solid #e5e7eb}
+  #msg{color:#b91c1c;min-height:1.4rem}
+</style>
+</head>
+<body>
+<h1>Employee Management System</h1>
+<form id="form">
+  <input name="name" placeholder="Name" required>
+  <input name="email" type="email" placeholder="Email" required>
+  <input name="department" placeholder="Department" required>
+  <input name="role" placeholder="Role" required>
+  <input name="salary" type="number" min="0" placeholder="Salary" required>
+  <button>Add employee</button>
+</form>
+<p id="msg" role="alert"></p>
+<input id="search" placeholder="Search by name or email" aria-label="Search" style="width:100%;margin-bottom:1rem">
+<table>
+  <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Salary</th><th></th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<script>
+const rows = document.getElementById('rows'), msg = document.getElementById('msg');
+const cell = (text) => { const td = document.createElement('td'); td.textContent = text; return td; };
+
+async function load() {
+  const q = encodeURIComponent(document.getElementById('search').value);
+  const list = await (await fetch('/api/employees?search=' + q)).json();
+  rows.replaceChildren(...list.map((e) => {
+    const tr = document.createElement('tr');
+    [e.name, e.email, e.department, e.role, e.salary.toLocaleString()].forEach((v) => tr.append(cell(v)));
+    const td = document.createElement('td'), b = document.createElement('button');
+    b.textContent = 'Delete'; b.className = 'del';
+    b.onclick = async () => { await fetch('/api/employees/' + e.id, { method: 'DELETE' }); load(); };
+    td.append(b); tr.append(td); return tr;
+  }));
+}
+
+document.getElementById('form').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const res = await fetch('/api/employees', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.fromEntries(new FormData(ev.target))),
+  });
+  const data = res.ok ? null : await res.json();
+  msg.textContent = data ? [data.error, ...(data.details || [])].join(': ') : '';
+  if (res.ok) { ev.target.reset(); load(); }
+};
+document.getElementById('search').oninput = load;
+load();
+</script>
+</body>
+</html>
